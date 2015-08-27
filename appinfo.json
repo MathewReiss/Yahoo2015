@@ -1,0 +1,90 @@
+{
+    "appKeys": {
+        "DATA": 9000,
+        "HOME_LEAGUE": 1,
+        "HOME_OPPONENT": 0,
+        "HOME_TEAM": 2,
+        "LEAGUE_1": 100,
+        "LEAGUE_10": 109,
+        "LEAGUE_11": 110,
+        "LEAGUE_12": 111,
+        "LEAGUE_13": 112,
+        "LEAGUE_14": 113,
+        "LEAGUE_15": 114,
+        "LEAGUE_16": 115,
+        "LEAGUE_17": 116,
+        "LEAGUE_18": 117,
+        "LEAGUE_19": 118,
+        "LEAGUE_2": 101,
+        "LEAGUE_20": 119,
+        "LEAGUE_3": 102,
+        "LEAGUE_4": 103,
+        "LEAGUE_5": 104,
+        "LEAGUE_6": 105,
+        "LEAGUE_7": 106,
+        "LEAGUE_8": 107,
+        "LEAGUE_9": 108,
+        "MATCHUP_OPPONENT_NAME": 13,
+        "MATCHUP_OPPONENT_SCORE_CHAR": 15,
+        "MATCHUP_OPPONENT_SCORE_INT": 14,
+        "MATCHUP_USER_NAME": 10,
+        "MATCHUP_USER_SCORE_CHAR": 12,
+        "MATCHUP_USER_SCORE_INT": 11,
+        "TEAM_1": 200,
+        "TEAM_10": 209,
+        "TEAM_11": 210,
+        "TEAM_12": 211,
+        "TEAM_13": 212,
+        "TEAM_14": 213,
+        "TEAM_15": 214,
+        "TEAM_16": 215,
+        "TEAM_17": 216,
+        "TEAM_18": 217,
+        "TEAM_19": 218,
+        "TEAM_2": 201,
+        "TEAM_20": 219,
+        "TEAM_21": 220,
+        "TEAM_22": 221,
+        "TEAM_23": 222,
+        "TEAM_24": 223,
+        "TEAM_25": 224,
+        "TEAM_26": 225,
+        "TEAM_27": 226,
+        "TEAM_28": 227,
+        "TEAM_29": 228,
+        "TEAM_3": 202,
+        "TEAM_30": 229,
+        "TEAM_4": 203,
+        "TEAM_5": 204,
+        "TEAM_6": 205,
+        "TEAM_7": 206,
+        "TEAM_8": 207,
+        "TEAM_9": 208
+    },
+    "capabilities": [
+        "configurable"
+    ],
+    "companyName": "MathewReiss",
+    "longName": "Yahoo Mock",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "images/yahoo_bw.png",
+                "name": "LOGO",
+                "type": "png"
+            }
+        ]
+    },
+    "sdkVersion": "3",
+    "shortName": "Yahoo Mock",
+    "targetPlatforms": [
+        "aplite",
+        "basalt"
+    ],
+    "uuid": "7eee3463-20ff-4daa-aa93-47244ed51177",
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
+}
