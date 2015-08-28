@@ -100,7 +100,7 @@ void send_initial_request(){
 }
 
 void handle_tick(struct tm *tick_time, TimeUnits units){
-	if(current == MATCHUP && tick_time->tm_min%5 == 0) send_request("MATCHUP");
+	if(current == MATCHUP && tick_time->tm_min%1 == 0) send_request("MATCHUP");
 }
 
 void process_tuple(Tuple *t){
@@ -157,15 +157,16 @@ void inbox(DictionaryIterator *iter, void *context){
 	push_appropriate_window();
   }
   else if(current == MATCHUP){
+	APP_LOG(APP_LOG_LEVEL_INFO, "Old Ally: %d, Old Enemy: %d. Ally: %d, Enemy: %d.", old_matchup_ally_score_int,old_matchup_enemy_score_int,matchup_ally_score_int,matchup_enemy_score_int);
 	if( (old_matchup_ally_score_int > old_matchup_enemy_score_int && matchup_ally_score_int < matchup_enemy_score_int)
 	 || (old_matchup_ally_score_int < old_matchup_enemy_score_int && matchup_ally_score_int > matchup_enemy_score_int)
 	 || (old_matchup_ally_score_int == 0 && old_matchup_enemy_score_int == 0 && (matchup_ally_score_int != 0 || matchup_enemy_score_int != 0)))
 	{
-	  old_matchup_ally_score_int = matchup_ally_score_int;
-	  old_matchup_enemy_score_int = matchup_enemy_score_int;
-	  vibes_short_pulse();
+		vibes_short_pulse();
 	}
-	  
+	old_matchup_ally_score_int = matchup_ally_score_int;
+	old_matchup_enemy_score_int = matchup_enemy_score_int;
+	   	  
 	layer_mark_dirty(matchup_custom_layer);
   }
 }
@@ -186,16 +187,24 @@ void home_draw_row(GContext *ctx, const Layer *cell_layer, MenuIndex *index, voi
 void home_select(MenuLayer *menu_layer, MenuIndex *index, void *data){
   MenuIndex home_row = menu_layer_get_selected_index(home_menu_layer);
   if(home_row.row == 3) return;
+  
+  if(home_row.row == 0){
+	if(matchup_ally_score_int != 0 || matchup_enemy_score_int != 0){
+	  window_stack_push(matchup_window, true);
+	  current = MATCHUP;
+	  send_request("MATCHUP");
+	  return;
+	}
+	send_request("MATCHUP");  
+  } 
+  else if(home_row.row == 1) send_request("LEAGUE");
+  else send_request("TEAM");
+  //push_appropriate_window();
 	
   window_stack_push(loading_window, true);
   loading_timer_cancel();
   loading_timer_start();
   current = LOADING;
-  
-  if(home_row.row == 0) send_request("MATCHUP");
-  else if(home_row.row == 1) send_request("LEAGUE");
-  else send_request("TEAM");
-  //push_appropriate_window();
 }
 
 static void draw_matchup_custom_layer(Layer *layer, GContext *ctx){
