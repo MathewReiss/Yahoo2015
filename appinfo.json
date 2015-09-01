@@ -30,6 +30,7 @@
         "MATCHUP_USER_NAME": 10,
         "MATCHUP_USER_SCORE_CHAR": 12,
         "MATCHUP_USER_SCORE_INT": 11,
+        "PRE_DRAFT": 300,
         "TEAM_1": 200,
         "TEAM_10": 209,
         "TEAM_11": 210,
@@ -64,8 +65,8 @@
     "capabilities": [
         "configurable"
     ],
-    "companyName": "MathewReiss",
-    "longName": "Yahoo Mock",
+    "companyName": "Mathew Reiss",
+    "longName": "Yahoo! Fantasy Football",
     "projectType": "native",
     "resources": {
         "media": [
@@ -77,13 +78,13 @@
         ]
     },
     "sdkVersion": "3",
-    "shortName": "Yahoo Mock",
+    "shortName": "Yahoo! Fantasy Football",
     "targetPlatforms": [
         "aplite",
         "basalt"
     ],
     "uuid": "7eee3463-20ff-4daa-aa93-47244ed51177",
-    "versionLabel": "1.0",
+    "versionLabel": "2.0",
     "watchapp": {
         "watchface": false
     }

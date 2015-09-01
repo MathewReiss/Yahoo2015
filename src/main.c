@@ -2,6 +2,8 @@
 
 #define DATA 9000	
 	
+#define PRE_DRAFT 300
+	
 #define APP_NAME "Yahoo! Fantasy Football"
 
 #ifdef PBL_COLOR
@@ -19,10 +21,10 @@
 #ifdef PBL_SDK_2
   #define FONT_KEY_LECO_42_NUMBERS FONT_KEY_BITHAM_42_BOLD
 #endif
-	
-Window *splash_window, *home_window, *matchup_window, *league_window, *team_window, *loading_window;
-MenuLayer *home_menu_layer, *league_menu_layer, *team_menu_layer;
-TextLayer *home_text_layer, *matchup_text_layer, *league_text_layer, *team_text_layer, *loading_text_layer;
+
+Window *splash_window, *home_window, *matchup_window, *league_window, *team_window, *loading_window, *credits_window;
+MenuLayer *home_menu_layer, *league_menu_layer, *team_menu_layer, *credits_menu_layer;
+TextLayer *home_text_layer, *matchup_text_layer, *league_text_layer, *team_text_layer, *loading_text_layer, *credits_text_layer;
 Layer *splash_custom_layer, *matchup_custom_layer, *loading_custom_layer;
 
 GBitmap *logo;
@@ -40,12 +42,15 @@ GRect loading_rect;
 bool loading_timer_active = false;
 bool loading_color = true;
 
+int num_teams = 20, num_players = 30;
+
 #define INIT -1
 #define SPLASH 0
 #define HOME 1
 #define MATCHUP 2
 #define LEAGUE 3
 #define TEAM 4
+#define CREDITS 5
 #define LOADING 9
 
 int current = -1;
@@ -56,6 +61,7 @@ void push_appropriate_window(void){
 	case 0: window_stack_push(matchup_window, true); break;
 	case 1: window_stack_push(league_window, true); break;
 	case 2: window_stack_push(team_window, true); break;
+	case 3: window_stack_push(credits_window, true); break;
   }
   window_stack_remove(loading_window, false);
 	
@@ -132,9 +138,28 @@ void process_tuple(Tuple *t){
 	}
 	else if(key < 200){ //LEAGUE
 	  strncpy(league_team_names[key-100], t->value->cstring, sizeof(league_team_names[key-100]));
+		
+	  if(strcmp(league_team_names[key-100], "") == 0 && key-100 < num_teams){
+		  num_teams = key-100;
+		  menu_layer_reload_data(league_menu_layer);
+	  }
 	}
-	else{ //TEAM
+	else if(key < 300){ //TEAM
 	  strncpy(team_player_names[key-200], t->value->cstring, sizeof(team_player_names[key-200]));
+		
+	  if(strcmp(team_player_names[key-200], "") == 0 && key-200 < num_players){
+		  num_players = key-200;
+		  menu_layer_reload_data(team_menu_layer);
+	  }
+	}
+	else if(key == 300){ //DRAFT STATUS
+	  if(atoi(t->value->cstring) == 1){
+	    #ifdef PBL_COLOR	
+  		  menu_layer_set_normal_colors(home_menu_layer, GColorBlack, GColorLightGray);
+ 		  menu_layer_set_highlight_colors(home_menu_layer, APP_COLOR, GColorLightGray);
+		  menu_layer_reload_data(home_menu_layer);
+		#endif
+	  }
 	}
 }
 void inbox(DictionaryIterator *iter, void *context){
@@ -182,11 +207,14 @@ void home_draw_row(GContext *ctx, const Layer *cell_layer, MenuIndex *index, voi
 	if(index->row == 0) menu_cell_basic_draw(ctx, cell_layer, "Current Matchup", home_matchup_subtitle, NULL);
 	else if(index->row == 1) menu_cell_basic_draw(ctx, cell_layer, "League Standings", home_league_subtitle, NULL);
 	else if(index->row == 2) menu_cell_basic_draw(ctx, cell_layer, "My Team", home_team_subtitle, NULL);
-	else menu_cell_basic_draw(ctx, cell_layer, "", APP_CREDIT, NULL);
+	else menu_cell_basic_draw(ctx, cell_layer, "Credits", "", NULL);
 }
 void home_select(MenuLayer *menu_layer, MenuIndex *index, void *data){
   MenuIndex home_row = menu_layer_get_selected_index(home_menu_layer);
-  if(home_row.row == 3) return;
+  if(home_row.row == 3){
+	push_appropriate_window();  
+	return;
+  }
   
   if(home_row.row == 0){
 	if(matchup_ally_score_int != 0 || matchup_enemy_score_int != 0){
@@ -198,7 +226,7 @@ void home_select(MenuLayer *menu_layer, MenuIndex *index, void *data){
 	send_request("MATCHUP");  
   } 
   else if(home_row.row == 1) send_request("LEAGUE");
-  else send_request("TEAM");
+  else if(home_row.row == 2) send_request("TEAM");
   //push_appropriate_window();
 	
   window_stack_push(loading_window, true);
@@ -225,17 +253,29 @@ static void draw_matchup_custom_layer(Layer *layer, GContext *ctx){
 }
 
 static uint16_t league_num_rows(MenuLayer *menu_layer, uint16_t section_index, void *data){
-  return 20;
+  return num_teams;
 }
 void league_draw_row(GContext *ctx, const Layer *cell_layer, MenuIndex *index, void *data){
   menu_cell_basic_draw(ctx, cell_layer, league_team_names[index->row], NULL, NULL);
 }
 
 static uint16_t team_num_rows(MenuLayer *menu_layer, uint16_t section_index, void *data){
-	return 30;
+	return num_players;
 }
 void team_draw_row(GContext *ctx, const Layer *cell_layer, MenuIndex *index, void *data){
   menu_cell_basic_draw(ctx, cell_layer, team_player_names[index->row], NULL, NULL);
+}
+
+static uint16_t credits_num_rows(MenuLayer *menu_layer, uint16_t section_index, void *data){
+	return 4;
+}
+void credits_draw_row(GContext *ctx, const Layer *cell_layer, MenuIndex *index, void *data){
+  switch(index->row){
+	case 0: menu_cell_basic_draw(ctx, cell_layer, "Front-End Dev", "Mathew Reiss", NULL); break;
+	case 1: menu_cell_basic_draw(ctx, cell_layer, "Back-End Dev", "Neal Patel", NULL); break;
+	case 2: menu_cell_basic_draw(ctx, cell_layer, "Logo, Name, etc.", APP_CREDIT, NULL); break;
+	case 3: menu_cell_basic_draw(ctx, cell_layer, "Injury Report", "Fantasy Football Nerd", NULL); break;
+  }
 }
 
 static void draw_loading_custom_layer(Layer *layer, GContext *ctx){
@@ -257,6 +297,13 @@ static void draw_loading_custom_layer(Layer *layer, GContext *ctx){
 #endif
 	
   graphics_fill_rect(ctx, loading_rect, 2, GCornersAll);	
+}
+
+void init_text_layer(TextLayer *text_layer){
+  text_layer_set_background_color(text_layer, GColorBlack);
+  text_layer_set_text_color(text_layer, GColorWhite);
+  text_layer_set_font(text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
 }
 
 void init_with_dummy_data(void){
@@ -317,10 +364,7 @@ void handle_init(void) {
 #endif
 	
   home_text_layer = text_layer_create(HEADER);
-  text_layer_set_background_color(home_text_layer, GColorBlack);
-  text_layer_set_text_color(home_text_layer, GColorWhite);
-  text_layer_set_font(home_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-  text_layer_set_text_alignment(home_text_layer, GTextAlignmentCenter);
+  init_text_layer(home_text_layer);
   text_layer_set_text(home_text_layer, APP_NAME);
 	
   home_menu_layer = menu_layer_create(BODY);
@@ -357,10 +401,7 @@ void handle_init(void) {
 #endif
 	
   loading_text_layer = text_layer_create(HEADER);
-  text_layer_set_background_color(loading_text_layer, GColorBlack);
-  text_layer_set_text_color(loading_text_layer, GColorWhite);
-  text_layer_set_font(loading_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-  text_layer_set_text_alignment(loading_text_layer, GTextAlignmentCenter);
+  init_text_layer(loading_text_layer);
   text_layer_set_text(loading_text_layer, "Loading...");
 	
   loading_custom_layer = layer_create(BODY);
@@ -382,10 +423,7 @@ void handle_init(void) {
 #endif
 	
   matchup_text_layer = text_layer_create(HEADER);
-  text_layer_set_background_color(matchup_text_layer, GColorBlack);
-  text_layer_set_text_color(matchup_text_layer, GColorWhite);
-  text_layer_set_font(matchup_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-  text_layer_set_text_alignment(matchup_text_layer, GTextAlignmentCenter);
+  init_text_layer(matchup_text_layer);
   text_layer_set_text(matchup_text_layer, "Current Matchup");
 	
   matchup_custom_layer = layer_create(BODY);
@@ -405,10 +443,7 @@ void handle_init(void) {
 #endif  
 	
   league_text_layer = text_layer_create(HEADER);
-  text_layer_set_background_color(league_text_layer, GColorBlack);
-  text_layer_set_text_color(league_text_layer, GColorWhite);
-  text_layer_set_font(league_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-  text_layer_set_text_alignment(league_text_layer, GTextAlignmentCenter);
+  init_text_layer(league_text_layer);
   text_layer_set_text(league_text_layer, "League Standings");
 	
   league_menu_layer = menu_layer_create(BODY);
@@ -442,10 +477,7 @@ void handle_init(void) {
 #endif	
 	
   team_text_layer = text_layer_create(HEADER);
-  text_layer_set_background_color(team_text_layer, GColorBlack);
-  text_layer_set_text_color(team_text_layer, GColorWhite);
-  text_layer_set_font(team_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-  text_layer_set_text_alignment(team_text_layer, GTextAlignmentCenter);
+  init_text_layer(team_text_layer);
   text_layer_set_text(team_text_layer, "My Team");
 	
   team_menu_layer = menu_layer_create(BODY);
@@ -467,12 +499,50 @@ void handle_init(void) {
 	
   layer_add_child(window_get_root_layer(team_window), text_layer_get_layer(team_text_layer));
   layer_add_child(window_get_root_layer(team_window), menu_layer_get_layer(team_menu_layer));
+	
+//==========
+	
+  credits_window = window_create();
+
+#ifdef PBL_SDK_2
+  window_set_fullscreen(credits_window, true);
+#else
+  window_set_background_color(credits_window, GColorBlack);
+#endif
+	
+  credits_text_layer = text_layer_create(HEADER);
+  init_text_layer(credits_text_layer);
+  text_layer_set_text(credits_text_layer, "Credits");
+	
+  credits_menu_layer = menu_layer_create(BODY);
+  menu_layer_set_callbacks(credits_menu_layer, NULL, (MenuLayerCallbacks){
+	 .draw_row = credits_draw_row,
+	 .get_num_rows = credits_num_rows
+  });
+  
+#ifdef PBL_SDK_3
+  menu_layer_pad_bottom_enable(credits_menu_layer, false);
+#endif
+	
+#ifdef PBL_COLOR
+  menu_layer_set_normal_colors(credits_menu_layer, GColorBlack, GColorWhite);
+  menu_layer_set_highlight_colors(credits_menu_layer, APP_COLOR, GColorWhite);
+#endif
+	
+  menu_layer_set_click_config_onto_window(credits_menu_layer, credits_window);
+  
+  layer_add_child(window_get_root_layer(credits_window), text_layer_get_layer(credits_text_layer));
+  layer_add_child(window_get_root_layer(credits_window), menu_layer_get_layer(credits_menu_layer));
 }
 
 void handle_deinit(void) {
   tick_timer_service_unsubscribe();
 	
   gbitmap_destroy(logo);	
+	
+  text_layer_destroy(credits_text_layer);
+  menu_layer_destroy(credits_menu_layer);
+  window_destroy(credits_window);
 	
   text_layer_destroy(team_text_layer);
   menu_layer_destroy(team_menu_layer);
