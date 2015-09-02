@@ -15,9 +15,13 @@ var OPPONENT_SCORE	= '';
 var REFRESH_URL		= 'https://ineal.me/pebble/fantasy/api/refresh_token';
 var LOGIN_URL		= 'https://ineal.me/pebble/fantasy/api/login';
 
+var END_WEEK = 16;
+
 var SHOW_INJURIES = true;
 
 var SETTINGS_VISIBLE = false;
+
+//PINS
 
 Pebble.addEventListener("ready", function(e){
 	SHOW_INJURIES	= localStorage.getItem("SHOW_INJURIES") ? localStorage.getItem("SHOW_INJURIES") : true;
@@ -31,7 +35,7 @@ Pebble.addEventListener("ready", function(e){
 	OAUTH_SESSION	= localStorage.getItem("OAUTH_SESSION");
 	
 	if(!SETTINGS_VISIBLE){
-		if(LEAGUE_ID !== null && LEAGUE_ID !== ''){
+		if(LEAGUE_ID !== null && LEAGUE_ID !== '' && LEAGUE_ID !== undefined){
 			Pebble.sendAppMessage({"DATA" : ""});		
 		}
 		else{
@@ -92,7 +96,7 @@ Pebble.addEventListener("appmessage", function(e){
 	
 	if(request === "HOME"){
 		url = 'http://fantasysports.yahooapis.com/fantasy/v2/league/nfl.l.'+LEAGUE_ID+'/scoreboard';
-		//Pebble.sendAppMessage({"HOME_OPPONENT" : "vs Optimus Prime", "HOME_LEAGUE" : "Transformers", "HOME_TEAM" : "Megatron"});
+		//Pebble.sendAppMessage({"HOME_OPPONENT" : "vs Optimus Prime", "HOME_LEAGUE" : "Transformers", "HOME_TEAM" : "Megatron", "PRE_DRAFT" : "1"});
 	}
 	else if(request === "MATCHUP"){
 		url = 'http://fantasysports.yahooapis.com/fantasy/v2/league/nfl.l.'+LEAGUE_ID+'/scoreboard';
@@ -229,6 +233,8 @@ function parseHome(json){
 	
 	LEAGUE_NAME = result.league.name;
 	
+	END_WEEK = result.league.end_week;
+	
 	for(var m = 0; m < result.league.scoreboard.matchups.count; m++){
 		for(var t = 0; t < result.league.scoreboard.matchups.matchup[m].teams.count; t++){
 			if(result.league.scoreboard.matchups.matchup[m].teams.team[t].is_owned_by_current_login === 1){
@@ -249,6 +255,8 @@ function parseHome(json){
 			"PRE_DRAFT"		: pre_draft
 		}
 	);
+	
+	timelineRequest();
 }
 
 function parseMatchup(json){
@@ -405,25 +413,25 @@ function checkInjuries(){
 					case "DAL" : team_obj = result.Injuries.DAL; break;
 					case "DEN" : team_obj = result.Injuries.DEN; break;
 					case "DET" : team_obj = result.Injuries.DET; break;
-					case "GB"  : team_obj = result.Injuries.GB; break;
+					case "GB"  : team_obj = result.Injuries.GB;  break;
 					case "HOU" : team_obj = result.Injuries.HOU; break;
 					case "IND" : team_obj = result.Injuries.IND; break;
 					case "JAC" : team_obj = result.Injuries.JAC; break;
-					case "KC"  : team_obj = result.Injuries.KC; break;
+					case "KC"  : team_obj = result.Injuries.KC;  break;
 					case "MIA" : team_obj = result.Injuries.MIA; break;
 					case "MIN" : team_obj = result.Injuries.MIN; break;
-					case "NE"  : team_obj = result.Injuries.NE; break;
-					case "NO"  : team_obj = result.Injuries.NO; break;
+					case "NE"  : team_obj = result.Injuries.NE;  break;
+					case "NO"  : team_obj = result.Injuries.NO;  break;
 					case "NYG" : team_obj = result.Injuries.NYG; break;
 					case "NYJ" : team_obj = result.Injuries.NYJ; break;
 					case "OAK" : team_obj = result.Injuries.OAK; break;
 					case "PHI" : team_obj = result.Injuries.PHI; break;
 					case "PIT" : team_obj = result.Injuries.PIT; break;
-					case "SD"  : team_obj = result.Injuries.SD; break;
+					case "SD"  : team_obj = result.Injuries.SD;  break;
 					case "SEA" : team_obj = result.Injuries.SEA; break;
-					case "SF"  : team_obj = result.Injuries.SF; break;
+					case "SF"  : team_obj = result.Injuries.SF;  break;
 					case "STL" : team_obj = result.Injuries.STL; break;
-					case "TB"  : team_obj = result.Injuries.TB; break;
+					case "TB"  : team_obj = result.Injuries.TB;  break;
 					case "TEN" : team_obj = result.Injuries.TEN; break;
 					case "WAS" : team_obj = result.Injuries.WAS; break;
 				}
@@ -445,7 +453,7 @@ function refreshTokens(currentType, currentUrl){
 	refresh.onreadystatechange = function(){
 		if(refresh.readyState === 4){
 			if(refresh.status === 200){
-				OAUTH_SESSION = refresh.response.keys.oauth_session;
+				OAUTH_SESSION = JSON.parse(refresh.response).keys.oauth_session;
 				localStorage.setItem("OAUTH_SESSION", OAUTH_SESSION);
 
 				//Reset retry attempts
@@ -456,10 +464,8 @@ function refreshTokens(currentType, currentUrl){
 			}
 			else{
 				//If at first you don't succeed...
-				if(retry_counter < 3) refreshTokens(currentType, currentUrl);
-				else Pebble.showSimpleNotificationOnPebble("Error", "Sorry, but an error has occurred. Please sign in again.");
-				
-				retry_counter++;
+				if(retry_counter < 3){ retry_counter++; refreshTokens(currentType, currentUrl); }
+				else{ retry_counter = 0; Pebble.showSimpleNotificationOnPebble("Error", "Sorry, but an error has occurred. Please sign in again."); }
 			}
 		}
 	};
@@ -468,4 +474,75 @@ function refreshTokens(currentType, currentUrl){
 	
 	refresh.open("POST", REFRESH_URL, true);
 	refresh.send(params);
+}
+
+var API_URL_ROOT = 'https://timeline-api.getpebble.com/';
+
+function timelineRequest(){
+	Pebble.getTimelineToken(function(token){
+		var times = [];
+		times.push({ "time" : "2015-09-10T23:30:00Z", "matchup" : "PIT @ NE" }); //Week 1 - Pitt @ NE
+		times.push({ "time" : "2015-09-17T23:25:00Z", "matchup" : "DEN @ KC" });
+		times.push({ "time" : "2015-09-24T23:25:00Z", "matchup" : "WAS @ NYG" });
+		times.push({ "time" : "2015-10-01T23:25:00Z", "matchup" : "BAL @ PIT" });
+		times.push({ "time" : "2015-10-08T23:25:00Z", "matchup" : "IND @ HOU" });
+		times.push({ "time" : "2015-10-15T23:25:00Z", "matchup" : "ATL @ NO" });
+		times.push({ "time" : "2015-10-22T23:25:00Z", "matchup" : "SEA @ SF" });
+		times.push({ "time" : "2015-10-29T23:25:00Z", "matchup" : "MIA @ NE" });
+		times.push({ "time" : "2015-11-06T00:25:00Z", "matchup" : "CLE @ CIN" });
+		times.push({ "time" : "2015-11-13T00:25:00Z", "matchup" : "BUF @ NYJ" });
+		times.push({ "time" : "2015-11-20T00:25:00Z", "matchup" : "TEN @ JAC" });
+		times.push({ "time" : "2015-11-26T16:30:00Z", "matchup" : "PHI @ DET" });
+		times.push({ "time" : "2015-12-04T00:25:00Z", "matchup" : "GB @ DET" });
+		times.push({ "time" : "2015-12-11T00:25:00Z", "matchup" : "MIN @ ARI" });
+		times.push({ "time" : "2015-12-18T00:25:00Z", "matchup" : "TB @ STL" });
+		times.push({ "time" : "2015-12-25T00:25:00Z", "matchup" : "SD @ OAK" });
+		times.push({ "time" : "2016-01-03T18:00:00Z", "matchup" : "All games"});
+		
+		var pin, url, xhr;
+		
+		for(var w = 1; w <= END_WEEK; w++){
+			pin = {
+				"id"			: "lineup_alert_"+w,
+				"time"			: times[w-1].time,	
+				"duration"		: 60,
+				"layout"		: {
+					"title"				: "Set lineup for Week " + w,
+					"subtitle"			: times[w-1].matchup,
+					"body"				: "Game starts in one hour!",
+					"type"				: "genericPin",
+					"tinyIcon"			: "system://images/NOTIFICATION_YAHOO_MAIL",
+					"largeIcon"			: "system://images/NOTIFICATION_YAHOO_MAIL",
+					"backgroundColor"	: "#5500AA",
+					"secondaryColor"	: "#FFFFFF",
+					"primaryColor"		: "#FFFFFF"
+				},
+				"reminders"		: [
+					{
+						"time"			: times[w-1].time,
+						"layout"		: {
+							"type"				: "genericReminder",
+							"tinyIcon"			: "system://images/NOTIFICATION_REMINDER",
+							"largeIcon"			: "system://images/NOTIFICATION_REMINDER",
+							"title"				: "Hey " + USER_NAME + "\nDon't forget to set your lineup for Week " + w + "!"
+						}
+					}
+				],
+				"actions"		: [
+					{
+						"title"			: "Check Lineup",
+						"type"			: "openWatchApp",
+						"launchCode"	: w
+					}
+				]
+			};
+			url = API_URL_ROOT + 'v1/user/pins/' + pin.id;
+			xhr = new XMLHttpRequest();
+			
+			xhr.open('PUT', url);
+			xhr.setRequestHeader('Content-Type', 'application/json');
+			xhr.setRequestHeader('X-User-Token', '' + token);
+			xhr.send(JSON.stringify(pin));
+		}
+	});
 }

@@ -42,6 +42,8 @@ GRect loading_rect;
 bool loading_timer_active = false;
 bool loading_color = true;
 
+bool pre_draft = false;
+
 int num_teams = 20, num_players = 30;
 
 #define INIT -1
@@ -106,7 +108,7 @@ void send_initial_request(){
 }
 
 void handle_tick(struct tm *tick_time, TimeUnits units){
-	if(current == MATCHUP && tick_time->tm_min%1 == 0) send_request("MATCHUP");
+	if(current == MATCHUP && tick_time->tm_min%5 == 0) send_request("MATCHUP");
 }
 
 void process_tuple(Tuple *t){
@@ -159,6 +161,8 @@ void process_tuple(Tuple *t){
  		  menu_layer_set_highlight_colors(home_menu_layer, APP_COLOR, GColorLightGray);
 		  menu_layer_reload_data(home_menu_layer);
 		#endif
+		text_layer_set_text(home_text_layer, "Status: Pre-Draft");
+		pre_draft = true;
 	  }
 	}
 }
@@ -182,7 +186,7 @@ void inbox(DictionaryIterator *iter, void *context){
 	push_appropriate_window();
   }
   else if(current == MATCHUP){
-	APP_LOG(APP_LOG_LEVEL_INFO, "Old Ally: %d, Old Enemy: %d. Ally: %d, Enemy: %d.", old_matchup_ally_score_int,old_matchup_enemy_score_int,matchup_ally_score_int,matchup_enemy_score_int);
+	//APP_LOG(APP_LOG_LEVEL_INFO, "Old Ally: %d, Old Enemy: %d. Ally: %d, Enemy: %d.", old_matchup_ally_score_int,old_matchup_enemy_score_int,matchup_ally_score_int,matchup_enemy_score_int);
 	if( (old_matchup_ally_score_int > old_matchup_enemy_score_int && matchup_ally_score_int < matchup_enemy_score_int)
 	 || (old_matchup_ally_score_int < old_matchup_enemy_score_int && matchup_ally_score_int > matchup_enemy_score_int)
 	 || (old_matchup_ally_score_int == 0 && old_matchup_enemy_score_int == 0 && (matchup_ally_score_int != 0 || matchup_enemy_score_int != 0)))
@@ -207,7 +211,16 @@ void home_draw_row(GContext *ctx, const Layer *cell_layer, MenuIndex *index, voi
 	if(index->row == 0) menu_cell_basic_draw(ctx, cell_layer, "Current Matchup", home_matchup_subtitle, NULL);
 	else if(index->row == 1) menu_cell_basic_draw(ctx, cell_layer, "League Standings", home_league_subtitle, NULL);
 	else if(index->row == 2) menu_cell_basic_draw(ctx, cell_layer, "My Team", home_team_subtitle, NULL);
-	else menu_cell_basic_draw(ctx, cell_layer, "Credits", "", NULL);
+	else{
+	  #ifdef PBL_COLOR
+		graphics_context_set_text_color(ctx, GColorWhite);
+	  #endif
+	  menu_cell_basic_draw(ctx, cell_layer, "Credits", "", NULL);
+	  #ifdef PBL_COLOR
+		if(pre_draft)
+		  graphics_context_set_text_color(ctx, GColorLightGray);
+	  #endif
+	}
 }
 void home_select(MenuLayer *menu_layer, MenuIndex *index, void *data){
   MenuIndex home_row = menu_layer_get_selected_index(home_menu_layer);
@@ -216,6 +229,8 @@ void home_select(MenuLayer *menu_layer, MenuIndex *index, void *data){
 	return;
   }
   
+  if(pre_draft) return;	
+	
   if(home_row.row == 0){
 	if(matchup_ally_score_int != 0 || matchup_enemy_score_int != 0){
 	  window_stack_push(matchup_window, true);

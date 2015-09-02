@@ -78,7 +78,7 @@
         ]
     },
     "sdkVersion": "3",
-    "shortName": "Yahoo! Fantasy Football",
+    "shortName": "Fantasy Football",
     "targetPlatforms": [
         "aplite",
         "basalt"
