@@ -44,6 +44,8 @@ bool loading_color = true;
 
 bool pre_draft = false;
 
+bool has_league_data = false, has_team_data = false, has_initial_matchup_data = false;
+
 int num_teams = 20, num_players = 30;
 
 #define INIT -1
@@ -60,9 +62,9 @@ int current = -1;
 void push_appropriate_window(void){
   MenuIndex home_row = menu_layer_get_selected_index(home_menu_layer);
   switch(home_row.row){
-	case 0: window_stack_push(matchup_window, true); break;
-	case 1: window_stack_push(league_window, true); break;
-	case 2: window_stack_push(team_window, true); break;
+	case 0: window_stack_push(matchup_window, true); has_initial_matchup_data = true; break;
+	case 1: window_stack_push(league_window, true); has_league_data = true; break;
+	case 2: window_stack_push(team_window, true); has_team_data = true; break;
 	case 3: window_stack_push(credits_window, true); break;
   }
   window_stack_remove(loading_window, false);
@@ -108,7 +110,7 @@ void send_initial_request(){
 }
 
 void handle_tick(struct tm *tick_time, TimeUnits units){
-	if(current == MATCHUP && tick_time->tm_min%5 == 0) send_request("MATCHUP");
+	if(current == MATCHUP && window_stack_contains_window(matchup_window) && tick_time->tm_min%5 == 0) send_request("MATCHUP");
 }
 
 void process_tuple(Tuple *t){
@@ -215,7 +217,7 @@ void home_draw_row(GContext *ctx, const Layer *cell_layer, MenuIndex *index, voi
 	  #ifdef PBL_COLOR
 		graphics_context_set_text_color(ctx, GColorWhite);
 	  #endif
-	  menu_cell_basic_draw(ctx, cell_layer, "Credits", "", NULL);
+	  menu_cell_basic_draw(ctx, cell_layer, "Credits", NULL, NULL);
 	  #ifdef PBL_COLOR
 		if(pre_draft)
 		  graphics_context_set_text_color(ctx, GColorLightGray);
@@ -232,22 +234,35 @@ void home_select(MenuLayer *menu_layer, MenuIndex *index, void *data){
   if(pre_draft) return;	
 	
   if(home_row.row == 0){
-	if(matchup_ally_score_int != 0 || matchup_enemy_score_int != 0){
-	  window_stack_push(matchup_window, true);
-	  current = MATCHUP;
-	  send_request("MATCHUP");
-	  return;
+	if(!has_initial_matchup_data){
+	  send_request("MATCHUP");  
+	  window_stack_push(loading_window, true);
+	  loading_timer_cancel();
+	  loading_timer_start();
+	  current = LOADING;	
 	}
-	send_request("MATCHUP");  
+	else push_appropriate_window();
   } 
-  else if(home_row.row == 1) send_request("LEAGUE");
-  else if(home_row.row == 2) send_request("TEAM");
-  //push_appropriate_window();
-	
-  window_stack_push(loading_window, true);
-  loading_timer_cancel();
-  loading_timer_start();
-  current = LOADING;
+  else if(home_row.row == 1){
+	if(!has_league_data){
+	  send_request("LEAGUE");
+	  window_stack_push(loading_window, true);
+	  loading_timer_cancel();
+  	  loading_timer_start();
+	  current = LOADING;
+	}
+    else push_appropriate_window();
+  }
+  else if(home_row.row == 2){
+	if(!has_team_data){
+	  send_request("TEAM");
+	  window_stack_push(loading_window, true);
+  	  loading_timer_cancel();
+  	  loading_timer_start();
+  	  current = LOADING;
+	}
+	else push_appropriate_window();
+  }
 }
 
 static void draw_matchup_custom_layer(Layer *layer, GContext *ctx){
@@ -259,12 +274,27 @@ static void draw_matchup_custom_layer(Layer *layer, GContext *ctx){
   else if(matchup_enemy_score_int > matchup_ally_score_int) graphics_fill_rect(ctx, BOTTOM_HALF, 0, GCornerNone);
 	
   graphics_context_set_text_color(ctx, GColorWhite);
-	
-  graphics_draw_text(ctx, matchup_ally_name, fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21), GRect(4,0,136,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
-  graphics_draw_text(ctx, matchup_ally_score_char, fonts_get_system_font(FONT_KEY_LECO_42_NUMBERS), GRect(0, 22, 144, 42), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
-  
-  graphics_draw_text(ctx, matchup_enemy_name, fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21), GRect(4,76,136,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
-  graphics_draw_text(ctx, matchup_enemy_score_char, fonts_get_system_font(FONT_KEY_LECO_42_NUMBERS), GRect(0, 98, 144, 42), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+
+#ifdef PBL_BW
+  if(matchup_ally_score_int > matchup_enemy_score_int){
+	graphics_draw_text(ctx, matchup_ally_name, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), GRect(4,0,136,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+	graphics_draw_text(ctx, matchup_enemy_name, fonts_get_system_font(FONT_KEY_GOTHIC_24), GRect(4,76,136,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+  }
+  else if(matchup_ally_score_int < matchup_enemy_score_int){
+	graphics_draw_text(ctx, matchup_ally_name, fonts_get_system_font(FONT_KEY_GOTHIC_24), GRect(4,0,136,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+	graphics_draw_text(ctx, matchup_enemy_name, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), GRect(4,76,136,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+  }
+  else{
+	graphics_draw_text(ctx, matchup_ally_name, fonts_get_system_font(FONT_KEY_GOTHIC_24), GRect(4,0,136,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+	graphics_draw_text(ctx, matchup_enemy_name, fonts_get_system_font(FONT_KEY_GOTHIC_24), GRect(4,76,136,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);  
+  }
+#else
+  graphics_draw_text(ctx, matchup_ally_name, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), GRect(4,0,136,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+  graphics_draw_text(ctx, matchup_enemy_name, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), GRect(4,76,136,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);  
+#endif	
+
+  graphics_draw_text(ctx, matchup_ally_score_char, fonts_get_system_font(FONT_KEY_LECO_42_NUMBERS), GRect(2, 22, 140, 42), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  graphics_draw_text(ctx, matchup_enemy_score_char, fonts_get_system_font(FONT_KEY_LECO_42_NUMBERS), GRect(2, 98, 140, 42), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 }
 
 static uint16_t league_num_rows(MenuLayer *menu_layer, uint16_t section_index, void *data){
@@ -391,6 +421,7 @@ void handle_init(void) {
 
 #ifdef PBL_SDK_3
   menu_layer_pad_bottom_enable(home_menu_layer, false);
+  menu_layer_reload_data(home_menu_layer);
 #endif
 	
 #ifdef PBL_COLOR	
@@ -537,6 +568,7 @@ void handle_init(void) {
   
 #ifdef PBL_SDK_3
   menu_layer_pad_bottom_enable(credits_menu_layer, false);
+  menu_layer_reload_data(credits_menu_layer);
 #endif
 	
 #ifdef PBL_COLOR
@@ -548,6 +580,10 @@ void handle_init(void) {
   
   layer_add_child(window_get_root_layer(credits_window), text_layer_get_layer(credits_text_layer));
   layer_add_child(window_get_root_layer(credits_window), menu_layer_get_layer(credits_menu_layer));
+	
+//==========
+	
+  if(launch_get_args() != 0) menu_layer_set_selected_index(home_menu_layer, MenuIndex(0,2), MenuRowAlignCenter, false);
 }
 
 void handle_deinit(void) {
